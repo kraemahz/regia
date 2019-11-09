@@ -9,6 +9,7 @@ use std::path::Path;
 use std::string::String;
 use std::vec::Vec;
 
+use colored::*;
 use chrono::{DateTime, Utc};
 use rmp_serde;
 use serde::{Deserialize, Serialize};
@@ -29,14 +30,14 @@ pub enum RepeatType {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
-    id: Uuid,
-    priority: u32,
-    created: DateTime<Utc>,
-    due: Option<DateTime<Utc>>,
-    content: String,
-    task_type: Option<TaskType>,
-    repeat: Option<RepeatType>,
-    depends: HashSet<Uuid>,
+    pub(crate) id: Uuid,
+    pub(crate) priority: u32,
+    pub(crate) created: DateTime<Utc>,
+    pub(crate) due: Option<DateTime<Utc>>,
+    pub(crate) content: String,
+    pub(crate) task_type: Option<TaskType>,
+    pub(crate) repeat: Option<RepeatType>,
+    pub(crate) depends: HashSet<Uuid>,
 }
 
 impl Task {
@@ -72,12 +73,19 @@ impl Task {
         }
     }
 
-    pub fn add_dependency(&mut self, task_id: &Uuid) {
-        self.depends.insert(task_id.clone());
+    pub fn fmt(&self, priority_map: &[(u32, &str)]) -> ColoredString {
+        let mut text_color = "white";
+        for (pri, col) in priority_map {
+            if self.priority < *pri {
+                text_color = col;
+                break;
+            }
+        }
+        format!("* {}", self.content).color(text_color)
     }
 
-    pub fn is_dependency(&self, task_id: &Uuid) -> bool {
-        self.depends.contains(task_id)
+    pub fn add_dependency(&mut self, task_id: &Uuid) {
+        self.depends.insert(task_id.clone());
     }
 }
 

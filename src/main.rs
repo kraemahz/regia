@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::fs::read_to_string;
-use std::io::ErrorKind as IOErrorKind;
+use std::io::{self, BufRead, ErrorKind as IOErrorKind};
 use std::path::{Path, PathBuf};
 
+use colored::*;
 use chrono::{DateTime, Utc};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde_yaml;
@@ -37,7 +38,7 @@ type Config = HashMap<String, HashMap<String, String>>;
 fn handle_task_add(
     matches: &ArgMatches,
     tasks: &mut aqua::Tasks,
-    config: &Config,
+    _doc: &Config,
 ) -> std::io::Result<()> {
     // Go through all the ArgMatches for this function
     // due, priority, repeats, depends, content
@@ -123,16 +124,56 @@ fn handle_task_add(
 fn handle_task_rm(
     matches: &ArgMatches,
     tasks: &mut aqua::Tasks,
-    config: &Config,
+    _doc: &Config,
 ) -> std::io::Result<()> {
+
+    let search = matches.value_of("search").unwrap();
+    let mut delete_me = Vec::new();
+
+    for task in tasks.get_tasks() {
+        if task.content.contains(search) {
+            delete_me.push(task.clone());
+        }
+    }
+
+    let delete_len = delete_me.len();
+
+    if delete_len > 0 {
+        println!("Found {} task{} that match{}:",
+                 format!("{}", delete_len).magenta(),
+                 if delete_len > 1 {"s"} else {""},
+                 if delete_len > 1 {""} else {"es"});
+        for task in delete_me.iter() {
+            println!("{}", task.fmt(&vec![]));
+        }
+        println!("{} [{}/{}]", "Complete?".magenta(), "y".bold(), "N".bold());
+        let stdin = io::stdin();
+        let mut stdin_iter = stdin.lock().lines();
+        loop {
+            let next_line = stdin_iter.next().unwrap().unwrap();
+            if next_line.to_lowercase() == "y" {
+                break;
+            } else if next_line == "" || next_line.to_lowercase() == "n" {
+                return Ok(());
+            } else {
+                println!("Didn't understand {} please type y or n", next_line);
+            }
+        }
+
+        for task in delete_me {
+            tasks.remove(task.id);
+        }
+    }
+
     Ok(())
 }
 
-fn handle_task_list(tasks: &aqua::Tasks, conf: &Config) -> std::io::Result<()> {
-    for task in tasks.get_tasks().iter() {
-        println!("{:?}", task);
+fn handle_task_list(tasks: &aqua::Tasks, _doc: &Config) -> std::io::Result<()> {
+    let mut tasks_list = tasks.get_tasks().clone();
+    tasks_list.sort_by_key(|k| k.created);
+    for task in tasks_list.iter().rev() {
+        println!("{}", task.fmt(&vec![]));
     }
-
     Ok(())
 }
 
