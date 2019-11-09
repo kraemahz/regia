@@ -1,17 +1,10 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::{
-    BufReader, BufWriter, Error as IOError, ErrorKind as IOErrorKind, Read, Result as IOResult,
-    Write,
-};
-use std::path::Path;
 use std::string::String;
 use std::vec::Vec;
 
 use chrono::{DateTime, Utc};
 use colored::*;
-use rmp_serde;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -101,20 +94,6 @@ impl PartialOrd for Task {
     }
 }
 
-pub fn write_to_disk<P: AsRef<Path>>(path: P, buf: &[u8]) -> Result<(), IOError> {
-    let file = File::create(path)?;
-    let mut stream = BufWriter::new(file);
-    stream.write_all(&buf)
-}
-
-pub fn read_from_disk<P: AsRef<Path>>(path: P) -> IOResult<Vec<u8>> {
-    let file = File::open(path)?;
-    let mut stream = BufReader::new(file);
-    let mut data = Vec::new();
-    stream.read_to_end(&mut data)?;
-    Ok(data)
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Tasks {
     id: Uuid,
@@ -122,15 +101,17 @@ pub struct Tasks {
     tasks: Vec<Task>,
 }
 
-impl Tasks {
-    pub fn new() -> Tasks {
-        Tasks {
+impl Default for Tasks {
+    fn default() -> Self {
+        Self {
             id: Uuid::new_v4(),
             group_name: "root".to_string(),
             tasks: vec![],
         }
     }
+}
 
+impl Tasks {
     pub fn get_tasks(&self) -> &Vec<Task> {
         &self.tasks
     }
@@ -145,32 +126,6 @@ impl Tasks {
         if let Ok(index) = self.tasks.binary_search_by(|probe| probe.id.cmp(&task_id)) {
             self.tasks.remove(index);
         }
-    }
-
-    pub fn serialize_msgpack(&self) -> Result<Vec<u8>, IOError> {
-        let mut buf = Vec::new();
-        match self.serialize(&mut rmp_serde::Serializer::new(&mut buf)) {
-            Ok(_) => Ok(buf),
-            Err(_) => Err(IOError::new(IOErrorKind::Other, "Serialization failed")),
-        }
-    }
-
-    pub fn deserialize_msgpack(buf: &[u8]) -> Result<Tasks, IOError> {
-        let mut de = rmp_serde::Deserializer::new(&buf[..]);
-        match Tasks::deserialize(&mut de) {
-            Ok(tasks) => Ok(tasks),
-            Err(_) => Err(IOError::new(IOErrorKind::Other, "Deserialization failed")),
-        }
-    }
-
-    pub fn from_disk<P: AsRef<Path>>(path: P) -> Result<Tasks, IOError> {
-        let buf = read_from_disk(path)?;
-        Tasks::deserialize_msgpack(buf.as_slice())
-    }
-
-    pub fn to_disk<P: AsRef<Path>>(&self, path: P) -> Result<(), IOError> {
-        let buf = self.serialize_msgpack()?;
-        write_to_disk(path, buf.as_slice())
     }
 }
 

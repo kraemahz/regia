@@ -9,6 +9,8 @@ use colored::*;
 use serde_yaml;
 use uuid::Uuid;
 
+mod db;
+mod note;
 mod todo;
 
 fn expand_tilde<P: AsRef<Path>>(path_user_input: P) -> Option<PathBuf> {
@@ -179,32 +181,36 @@ fn handle_task_list(tasks: &todo::Tasks, _doc: &Config) -> std::io::Result<()> {
 }
 
 fn handle_task(matches: &ArgMatches, doc: &Config) -> std::io::Result<()> {
-    let task_db_default = Path::new(".tasks.db");
-    let task_db = match doc.get("contents") {
-        Some(content) => match content.get("task_db") {
+    let db_default = Path::new(".regia.db");
+    let db_path = match doc.get("contents") {
+        Some(content) => match content.get("regia_db") {
             Some(content) => Path::new(content),
-            None => task_db_default,
+            None => db_default,
         },
-        None => task_db_default,
+        None => db_default,
     };
 
-    let mut tasks = match todo::Tasks::from_disk(task_db) {
-        Ok(tasks) => tasks,
+    let db = match db::Database::from_disk(db_path) {
+        Ok(db) => db,
         Err(err) => {
             if err.kind() == IOErrorKind::Other {
                 return Err(err);
             } else {
-                todo::Tasks::new()
+                db::Database::default()
             }
         }
     };
 
+    let mut tasks = db.tasks;
+
     if let Some(ref matches) = matches.subcommand_matches("add") {
         handle_task_add(matches, &mut tasks, doc)?;
-        tasks.to_disk(task_db)
+        let new_db = db::Database{tasks, notes: db.notes};
+        new_db.to_disk(db_path)
     } else if let Some(ref matches) = matches.subcommand_matches("rm") {
         handle_task_rm(matches, &mut tasks, doc)?;
-        tasks.to_disk(task_db)
+        let new_db = db::Database{tasks, notes: db.notes};
+        new_db.to_disk(db_path)
     } else {
         handle_task_list(&tasks, doc)
     }
