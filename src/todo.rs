@@ -9,8 +9,8 @@ use std::path::Path;
 use std::string::String;
 use std::vec::Vec;
 
-use colored::*;
 use chrono::{DateTime, Utc};
+use colored::*;
 use rmp_serde;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

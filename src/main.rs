@@ -3,13 +3,13 @@ use std::fs::read_to_string;
 use std::io::{self, BufRead, ErrorKind as IOErrorKind};
 use std::path::{Path, PathBuf};
 
-use colored::*;
 use chrono::{DateTime, Utc};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use colored::*;
 use serde_yaml;
 use uuid::Uuid;
 
-mod aqua;
+mod todo;
 
 fn expand_tilde<P: AsRef<Path>>(path_user_input: P) -> Option<PathBuf> {
     let p = path_user_input.as_ref();
@@ -37,7 +37,7 @@ type Config = HashMap<String, HashMap<String, String>>;
 
 fn handle_task_add(
     matches: &ArgMatches,
-    tasks: &mut aqua::Tasks,
+    tasks: &mut todo::Tasks,
     _doc: &Config,
 ) -> std::io::Result<()> {
     // Go through all the ArgMatches for this function
@@ -49,12 +49,12 @@ fn handle_task_add(
     };
 
     let mut task_type = None;
-    let repeat: Option<aqua::RepeatType> = if let Some(repeat_str) = matches.value_of("repeats") {
-        task_type = Some(aqua::TaskType::Repeated);
+    let repeat: Option<todo::RepeatType> = if let Some(repeat_str) = matches.value_of("repeats") {
+        task_type = Some(todo::TaskType::Repeated);
         match repeat_str.to_ascii_lowercase().as_ref() {
-            "daily" => Some(aqua::RepeatType::Daily),
-            "weekly" => Some(aqua::RepeatType::Weekly),
-            "monthly" => Some(aqua::RepeatType::Monthly),
+            "daily" => Some(todo::RepeatType::Daily),
+            "weekly" => Some(todo::RepeatType::Weekly),
+            "monthly" => Some(todo::RepeatType::Monthly),
             _ => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
@@ -70,7 +70,7 @@ fn handle_task_add(
 
     let datetime: Option<DateTime<Utc>> = if let Some(due_date) = matches.value_of("due date") {
         if task_type.is_none() {
-            task_type = Some(aqua::TaskType::Deadline);
+            task_type = Some(todo::TaskType::Deadline);
         }
         match DateTime::parse_from_rfc2822(due_date) {
             Ok(dt) => Some(dt.with_timezone(&Utc)),
@@ -87,9 +87,9 @@ fn handle_task_add(
 
     // Build the input from the matches
     let mut task = if task_type.is_none() {
-        aqua::Task::new(String::from(content), priority)
+        todo::Task::new(String::from(content), priority)
     } else {
-        aqua::Task::new_date(
+        todo::Task::new_date(
             String::from(content),
             priority,
             datetime,
@@ -123,10 +123,9 @@ fn handle_task_add(
 
 fn handle_task_rm(
     matches: &ArgMatches,
-    tasks: &mut aqua::Tasks,
+    tasks: &mut todo::Tasks,
     _doc: &Config,
 ) -> std::io::Result<()> {
-
     let search = matches.value_of("search").unwrap();
     let mut delete_me = Vec::new();
 
@@ -139,10 +138,12 @@ fn handle_task_rm(
     let delete_len = delete_me.len();
 
     if delete_len > 0 {
-        println!("Found {} task{} that match{}:",
-                 format!("{}", delete_len).magenta(),
-                 if delete_len > 1 {"s"} else {""},
-                 if delete_len > 1 {""} else {"es"});
+        println!(
+            "Found {} task{} that match{}:",
+            format!("{}", delete_len).magenta(),
+            if delete_len > 1 { "s" } else { "" },
+            if delete_len > 1 { "" } else { "es" }
+        );
         for task in delete_me.iter() {
             println!("{}", task.fmt(&vec![]));
         }
@@ -168,7 +169,7 @@ fn handle_task_rm(
     Ok(())
 }
 
-fn handle_task_list(tasks: &aqua::Tasks, _doc: &Config) -> std::io::Result<()> {
+fn handle_task_list(tasks: &todo::Tasks, _doc: &Config) -> std::io::Result<()> {
     let mut tasks_list = tasks.get_tasks().clone();
     tasks_list.sort_by_key(|k| k.created);
     for task in tasks_list.iter().rev() {
@@ -187,13 +188,13 @@ fn handle_task(matches: &ArgMatches, doc: &Config) -> std::io::Result<()> {
         None => task_db_default,
     };
 
-    let mut tasks = match aqua::Tasks::from_disk(task_db) {
+    let mut tasks = match todo::Tasks::from_disk(task_db) {
         Ok(tasks) => tasks,
         Err(err) => {
             if err.kind() == IOErrorKind::Other {
                 return Err(err);
             } else {
-                aqua::Tasks::new()
+                todo::Tasks::new()
             }
         }
     };
