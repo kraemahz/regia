@@ -44,10 +44,10 @@ impl Task {
     pub fn new(content: String, priority: u32) -> Self {
         Task {
             id: Uuid::new_v4(),
-            priority: priority,
+            priority,
             created: Utc::now(),
             due: None,
-            content: content,
+            content,
             task_type: None,
             repeat: None,
             depends: HashSet::new(),
@@ -63,12 +63,12 @@ impl Task {
     ) -> Self {
         Task {
             id: Uuid::new_v4(),
-            priority: priority,
+            priority,
             created: Utc::now(),
-            due: due,
-            content: content,
+            due,
+            content,
             task_type: Some(task_type),
-            repeat: repeat,
+            repeat,
             depends: HashSet::new(),
         }
     }

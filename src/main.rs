@@ -86,16 +86,16 @@ fn handle_task_add(
     };
 
     // Build the input from the matches
-    let mut task = if task_type.is_none() {
-        todo::Task::new(String::from(content), priority)
-    } else {
+    let mut task = if let Some(task_type) = task_type {
         todo::Task::new_date(
             String::from(content),
             priority,
             datetime,
-            task_type.unwrap(),
+            task_type,
             repeat,
         )
+    } else {
+        todo::Task::new(String::from(content), priority)
     };
 
     if let Some(deps) = matches.values_of("depends") {
@@ -145,7 +145,7 @@ fn handle_task_rm(
             if delete_len > 1 { "" } else { "es" }
         );
         for task in delete_me.iter() {
-            println!("{}", task.fmt(&vec![]));
+            println!("{}", task.fmt(&[]));
         }
         println!("{} [{}/{}]", "Complete?".magenta(), "y".bold(), "N".bold());
         let stdin = io::stdin();
@@ -173,7 +173,7 @@ fn handle_task_list(tasks: &todo::Tasks, _doc: &Config) -> std::io::Result<()> {
     let mut tasks_list = tasks.get_tasks().clone();
     tasks_list.sort_by_key(|k| k.created);
     for task in tasks_list.iter().rev() {
-        println!("{}", task.fmt(&vec![]));
+        println!("{}", task.fmt(&[]));
     }
     Ok(())
 }
