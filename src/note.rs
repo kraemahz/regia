@@ -1,15 +1,14 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct Note {
-}
+pub struct Note {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Notes {
     id: Uuid,
     group_name: String,
-    notes: Vec<Note>
+    notes: Vec<Note>,
 }
 
 impl Default for Notes {

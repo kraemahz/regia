@@ -89,13 +89,7 @@ fn handle_task_add(
 
     // Build the input from the matches
     let mut task = if let Some(task_type) = task_type {
-        todo::Task::new_date(
-            String::from(content),
-            priority,
-            datetime,
-            task_type,
-            repeat,
-        )
+        todo::Task::new_date(String::from(content), priority, datetime, task_type, repeat)
     } else {
         todo::Task::new(String::from(content), priority)
     };
@@ -205,11 +199,17 @@ fn handle_task(matches: &ArgMatches, doc: &Config) -> std::io::Result<()> {
 
     if let Some(ref matches) = matches.subcommand_matches("add") {
         handle_task_add(matches, &mut tasks, doc)?;
-        let new_db = db::Database{tasks, notes: db.notes};
+        let new_db = db::Database {
+            tasks,
+            notes: db.notes,
+        };
         new_db.to_disk(db_path)
     } else if let Some(ref matches) = matches.subcommand_matches("rm") {
         handle_task_rm(matches, &mut tasks, doc)?;
-        let new_db = db::Database{tasks, notes: db.notes};
+        let new_db = db::Database {
+            tasks,
+            notes: db.notes,
+        };
         new_db.to_disk(db_path)
     } else {
         handle_task_list(&tasks, doc)
