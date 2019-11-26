@@ -116,6 +116,14 @@ impl Tasks {
         &self.tasks
     }
 
+    pub fn get_task(&self, id: &Uuid) -> Option<&Task> {
+        if let Ok(index) = self.tasks.binary_search_by(|probe| probe.id.cmp(&id)) {
+            self.tasks.get(index)
+        } else {
+            None
+        }
+    }
+
     pub fn add(&mut self, task: Task) {
         self.tasks.push(task);
         self.tasks
@@ -132,12 +140,13 @@ impl Tasks {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::Database;
     use tempfile::NamedTempFile;
 
     #[test]
     fn add_and_remove_task() {
         let task = Task::new(String::from("test task"), 0);
-        let mut tasks = Tasks::new();
+        let mut tasks = Tasks::default();
         tasks.add(task.clone());
         assert_eq!(&vec![task.clone()], tasks.get_tasks());
         tasks.remove(task.id);
@@ -151,17 +160,20 @@ mod tests {
 
         task.add_dependency(&subtask.id);
 
-        let mut tasks = Tasks::new();
-        tasks.add(task.clone());
-        tasks.add(subtask.clone());
+        let mut db = Database::default();
+        {
+            let tasks = &mut db.tasks;
+            tasks.add(task.clone());
+            tasks.add(subtask.clone());
+        }
 
         let mut file = NamedTempFile::new().unwrap();
-        tasks.to_disk(file.path());
+        db.to_disk(file.path());
 
-        let from_disk_tasks = Tasks::from_disk(file.path()).unwrap();
-        assert_eq!(tasks, from_disk_tasks);
+        let from_disk_db = Database::from_disk(file.path()).unwrap();
+        assert_eq!(db.tasks, from_disk_db.tasks);
 
-        for disk_task in from_disk_tasks.get_tasks().iter() {
+        for disk_task in from_disk_db.tasks.get_tasks().iter() {
             match disk_task.id {
                 id if id == task.id => {
                     assert_eq!(&task, disk_task);
